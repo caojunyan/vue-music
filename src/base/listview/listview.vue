@@ -1,7 +1,12 @@
 <template>
-<scroll class="listview" :data="data">
+<scroll class="listview"
+        :data="data"
+        ref="Listview"
+        :probeType="probeType"
+        :listenScroll="listenScroll"
+        @scroll="scroll">
   <ul>
-    <li v-for="(group,index) in data" class="list-group" :key="index">
+    <li v-for="(group,index) in data" class="list-group" :key="index"  ref="ListGroup">
       <h2 class="list-group-title">{{group.title}}</h2>
       <ul>
         <li v-for="(item,index) in group.items" :key="index" class="list-group-item">
@@ -11,20 +16,117 @@
       </ul>
     </li>
   </ul>
+  <div class="list-shortcut" @touchstart="onShortcutTouchStart" @touchmove.stop.prevent="onShortcutTouchMove">
+    <ul>
+      <li v-for="(item,index) in showcutList" class="item"
+          :key="index"
+          :data-index="index"
+          :class="{'current':currentIndex==index}">
+        {{item}}
+      </li>
+    </ul>
+  </div>
 </scroll>
 </template>
 
 <script>
-  import Scroll from '../../base/scroll/scroll.vue'
+import Scroll from '../../base/scroll/scroll.vue'
+import {getData} from '../../common/js/dom'
+const ANCHOR_HEIGHT=18
 export default {
+  created(){
+    this.touch={},
+    this.listenScroll=true
+    this.listHeight=[]
+    this.probeType=3
+  },
   props:{
     data:{
       type:Array,
       default:[]
     }
   },
+  data(){
+   return{
+     scrollY:-1,
+     currentIndex:0
+   }
+  },
   components:{
     Scroll
+  },
+  computed:{
+    showcutList(){
+      return this.data.map((group)=>{
+        return group.title.substr(0,1)
+      })
+    }
+  },
+  methods:{
+    onShortcutTouchStart(e){
+      let anchorIndex=getData(e.target,'index')
+      let firstTouch=e.touches[0]
+      this.touch.y1=firstTouch.pageY
+      this.touch.anchorIndex=anchorIndex
+      this._scrollTo(anchorIndex)
+    },
+    onShortcutTouchMove(e){
+      let firstTouch=e.touches[0]
+      this.touch.y2=firstTouch.pageY
+      let delta=(this.touch.y2-this.touch.y1)/ANCHOR_HEIGHT | 0
+      let anchorIndex=parseInt(this.touch.anchorIndex)+delta
+      this._scrollTo(anchorIndex)
+    },
+    _scrollTo(index){
+      this.scrollY= -this.listHeight[index]
+      this.$refs.Listview.scrollToElement(this.$refs.ListGroup[index],0)
+      if(!index && index!==0){
+        return
+      }
+      if(index<0){
+        index=0
+      }else if(index>this.listHeight.length-2){
+        index=this.listHeight.length-2
+      }
+    },
+    scroll(pos){
+      this.scrollY=pos.y
+    },
+    _calculateHeight(){
+      this.listHeight=[]
+      const list=this.$refs.ListGroup
+      let height=0
+      this.listHeight.push(height)
+      for(let i=0;i<list.length;i++){
+        let item=list[i]
+        height+=item.clientHeight
+        this.listHeight.push(height)
+      }
+    }
+  },
+  watch:{
+    data(){
+      setTimeout(()=>{
+        this._calculateHeight()
+      },20)
+    },
+    scrollY(newY){
+      const listHeight=this.listHeight
+      if(newY>0){
+        this.currentIndex=0
+        return
+      }
+      for(let i=0;i<listHeight.length-1;i++){
+        let height1=listHeight[i]
+        let height2=listHeight[i+1]
+        if(-newY >=height1&& -newY<height2){
+          this.currentIndex=i
+          return
+        }
+        this.currentIndex=listHeight.length-2
+      }
+
+    }
   }
 }
 </script>

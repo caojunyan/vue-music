@@ -6,10 +6,10 @@
         :listenScroll="listenScroll"
         @scroll="scroll">
   <ul>
-    <li v-for="(group,index) in data" class="list-group" :key="index"  ref="ListGroup">
+    <li  v-for="(group,index) in data" class="list-group" :key="index"  ref="ListGroup">
       <h2 class="list-group-title">{{group.title}}</h2>
       <ul>
-        <li v-for="(item,index) in group.items" :key="index" class="list-group-item">
+        <li @click="selectItem(item)" v-for="(item,index) in group.items" :key="index" class="list-group-item">
           <img class="avatar" v-lazy="item.avatar" alt="">
           <span class="name">{{item.name}}</span>
         </li>
@@ -26,6 +26,9 @@
       </li>
     </ul>
   </div>
+  <div class="list-fixed" v-show="fixedTitle" ref="fixed">
+    <h1 class="fixed-title">{{fixedTitle}}</h1>
+  </div>
 </scroll>
 </template>
 
@@ -33,6 +36,8 @@
 import Scroll from '../../base/scroll/scroll.vue'
 import {getData} from '../../common/js/dom'
 const ANCHOR_HEIGHT=18
+const Title_HEIGHT=30
+
 export default {
   created(){
     this.touch={},
@@ -49,6 +54,7 @@ export default {
   data(){
    return{
      scrollY:-1,
+     diff:-1,
      currentIndex:0
    }
   },
@@ -60,9 +66,18 @@ export default {
       return this.data.map((group)=>{
         return group.title.substr(0,1)
       })
+    },
+    fixedTitle(){
+      if(this.scrollY>0){
+        return ''
+      }
+      return this.data[this.currentIndex]?this.data[this.currentIndex].title:""
     }
   },
   methods:{
+    selectItem(item){
+      this.$emit('select',item)
+    },
     onShortcutTouchStart(e){
       let anchorIndex=getData(e.target,'index')
       let firstTouch=e.touches[0]
@@ -121,11 +136,20 @@ export default {
         let height2=listHeight[i+1]
         if(-newY >=height1&& -newY<height2){
           this.currentIndex=i
+          this.diff=height2+newY
           return
         }
         this.currentIndex=listHeight.length-2
       }
 
+    },
+    diff(newVal){
+      let fixedTop=(newVal>0 &&newVal<Title_HEIGHT)?newVal-Title_HEIGHT:0
+      if(this.fixedTop===fixedTop){
+        return
+      }
+      this.fixedTop=fixedTop
+      this.$refs.fixed.style.transform=`translate3d(0,${fixedTop}px,0)`
     }
   }
 }
